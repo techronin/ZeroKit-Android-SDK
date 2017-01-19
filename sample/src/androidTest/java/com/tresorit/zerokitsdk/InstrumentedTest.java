@@ -54,7 +54,7 @@ public class InstrumentedTest {
             try {
                 Properties properties = new Properties();
                 properties.load(targetContext.getAssets().open("zerokit.properties"));
-                adminApi = new AdminApi(properties.getProperty("adminuserid", ""), properties.getProperty("adminkey", ""), targetContext.getPackageManager().getApplicationInfo(targetContext.getPackageName(), PackageManager.GET_META_DATA).metaData.getString(API_ROOT));
+                adminApi = new AdminApi(properties.getProperty("adminuserid", ""), properties.getProperty("adminkey", ""), properties.getProperty("apiroot", ""));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -75,6 +75,16 @@ public class InstrumentedTest {
     private static final String USER_02_ALIAS = "User02";
     private static final String USER_01_PASS = "Password01";
     private static final String USER_02_PASS = "Password02";
+
+    @Test
+    public void testLogin(){
+        String pass01 = USER_01_PASS;
+        String user01 = registrationTest(USER_01_ALIAS, pass01);
+
+        loginTest(user01, pass01);
+
+        logoutTest();
+    }
 
     @Test
     public void testChangePasswordLoggedIn(){

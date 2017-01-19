@@ -17,6 +17,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
+import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -68,6 +69,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 
 import javax.crypto.Cipher;
@@ -205,7 +207,15 @@ public final class Zerokit {
      */
     static void init(@NonNull Context context) {
         try {
-            String apiRoot = context.getPackageManager().getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA).metaData.getString(API_ROOT);
+            String apiRoot = null;
+            try {
+                Properties properties = new Properties();
+                properties.load(context.getAssets().open("zerokit.properties"));
+                apiRoot = properties.getProperty("apiroot", "");
+            } catch (IOException ignored) {
+            }
+            if (TextUtils.isEmpty(apiRoot))
+                apiRoot = context.getPackageManager().getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA).metaData.getString(API_ROOT);
             if (TextUtils.isEmpty(apiRoot))
                 throw new IllegalStateException("No ApiRoot definition found in the AndroidManifest.xml");
             instance = new Zerokit(context, apiRoot);
@@ -340,9 +350,12 @@ public final class Zerokit {
                     * Ensure that the init url has been called only once
                     */
                     if (initState == InitState.NOT_INITED) {
-                        log("JS Zerokit: init", "Init started");
-                        initState = InitState.INITING;
-                        loadUrl(apiRoot + BASE_URL);
+                        if (!URLUtil.isValidUrl(apiRoot)) subscriber.onFail("Invalid root url");
+                        else {
+                            log("JS Zerokit: init", "Init started");
+                            initState = InitState.INITING;
+                            loadUrl(apiRoot + BASE_URL);
+                        }
                     }
                 } else
                     /*
@@ -401,6 +414,11 @@ public final class Zerokit {
                     observers.remove(id);
                     subscriber.onFail(new ResponseZerokitError("JSONException").toJSON());
                 }
+            }
+        }, new Action1<String>() {
+            @Override
+            public void call(String error) {
+                subscriber.onFail(new ResponseZerokitError(error).toJSON());
             }
         });
     }
@@ -597,16 +615,11 @@ public final class Zerokit {
         @JavascriptInterface
         @SuppressWarnings("unused")
         public void onSuccess(final String result, final String key) {
-            runOnHandlerThread(new Runnable() {
-                @Override
-                public void run() {
-                    Observer<? super String, ? super String> subscriber = observers.get(key);
-                    if (subscriber != null) {
-                        subscriber.onSuccess(result);
-                        observers.remove(key);
-                    }
-                }
-            });
+            Observer<? super String, ? super String> subscriber = observers.get(key);
+            if (subscriber != null) {
+                subscriber.onSuccess(result);
+                observers.remove(key);
+            }
         }
 
         /**
@@ -618,16 +631,11 @@ public final class Zerokit {
         @JavascriptInterface
         @SuppressWarnings("unused")
         public void onError(final String result, final String key) {
-            runOnHandlerThread(new Runnable() {
-                @Override
-                public void run() {
-                    Observer<? super String, ? super String> subscriber = observers.get(key);
-                    if (subscriber != null) {
-                        subscriber.onFail(result);
-                        observers.remove(key);
-                    }
-                }
-            });
+            Observer<? super String, ? super String> subscriber = observers.get(key);
+            if (subscriber != null) {
+                subscriber.onFail(result);
+                observers.remove(key);
+            }
         }
     }
 

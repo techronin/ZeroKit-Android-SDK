@@ -26,6 +26,29 @@ android {
     }
 }
 
+task loadEnvVariables {
+    Properties props = new Properties()
+    def propsFile = new File('.\\sample\\src\\main\\assets\\zerokit.properties')
+    propsFile.createNewFile()
+    props.load(propsFile.newDataInputStream())
+    def adminKey = System.getenv('ADMIN_KEY')
+    def adminUserid = System.getenv('ADMIN_USERID')
+    def apiRoot = System.getenv('API_ROOT')
+
+    if (adminKey != null) {
+        props.setProperty('adminkey', adminKey)
+    }
+    if (adminUserid != null) {
+        props.setProperty('adminuserid', adminUserid)
+    }
+    if (apiRoot != null) {
+        props.setProperty('apiroot', apiRoot)
+    }
+    props.store(propsFile.newWriter(), null)
+}
+
+preBuild.dependsOn loadEnvVariables
+
 dependencies {
     annotationProcessor 'com.google.dagger:dagger-compiler:2.0.1'
 
